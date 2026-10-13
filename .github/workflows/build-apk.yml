@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -31,7 +34,18 @@ jobs:
             echo "::error title=Build failed::$msg"
             exit $code
           fi
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: SleepButtons-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK as a release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk SleepButtons.apk
+          tag="build-${{ github.run_number }}"
+          gh release create "$tag" SleepButtons.apk --target "${{ github.sha }}" --latest \
+            --title "Sleep Buttons (build ${{ github.run_number }})" \
+            --notes "Debug APK built from ${GITHUB_SHA::7}. On your phone: download SleepButtons.apk, open it, allow installing from this source."
